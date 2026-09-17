@@ -1,0 +1,12 @@
+.build/
+dist/
+.artifacts/
+.swiftpm/
+docs/*.json
+docs/screenshots/
+docs/VALIDATION.md
+docs/NOTARIZATION.md
+outputs/
+scripts/
+.DS_Store
+*.xcuserstate
