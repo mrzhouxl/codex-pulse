@@ -113,14 +113,14 @@ final class PulseStore: ObservableObject {
             if method == "account/rateLimits/updated", Date().timeIntervalSince(self.lastAttempt) > 3 { self.refresh() }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }; self.now = Date()
                 if self.now.timeIntervalSince(self.lastLocalRead) >= 10 { self.refreshLocalUsage() }
                 if self.now.timeIntervalSince(self.lastAttempt) >= self.refreshSeconds { self.refresh() }
             }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor [weak self] in self?.refresh() }
         }
         refresh()
     }

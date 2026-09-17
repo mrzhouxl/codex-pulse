@@ -73,7 +73,7 @@ final class CodexClient {
         let token = UUID(); generation = token
         stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, self.generation == token else { return }
                 if data.isEmpty {
                     self.output?.readabilityHandler = nil
@@ -83,7 +83,7 @@ final class CodexClient {
             }
         }
         child.terminationHandler = { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, self.generation == token else { return }
                 self.ready = false; self.failPending(PulseError.disconnected)
             }

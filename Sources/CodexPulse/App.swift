@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         NotificationCenter.default.addObserver(self, selector: #selector(screenChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(showExistingInstance(_:)), name: .pulseShowExisting, object: "app.codexpulse.mac")
         globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in self?.hideDetails() }
+            Task { @MainActor [weak self] in self?.hideDetails() }
         }
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
             guard let self else { return event }
@@ -265,7 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         completionHandler([.banner, .sound])
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        Task { @MainActor in self.showDashboard() }; completionHandler()
+        Task { @MainActor [weak self] in self?.showDashboard() }; completionHandler()
     }
 
     private func runSmokeTest() {
