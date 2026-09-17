@@ -24,13 +24,13 @@ jobs:
         env:
           CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/ModuleCache
           SWIFTPM_MODULECACHE_OVERRIDE: ${{ github.workspace }}/.build/ModuleCache
-        run: swift test --disable-sandbox -Xswiftc -swift-version -Xswiftc 5
+        run: swift test --disable-sandbox -Xswiftc -swift-version -Xswiftc 5 -Xswiftc -Xfrontend -Xswiftc -strict-concurrency=minimal
 
       - name: Build release binary
         env:
           CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/ModuleCache
           SWIFTPM_MODULECACHE_OVERRIDE: ${{ github.workspace }}/.build/ModuleCache
-        run: swift build -c release --disable-sandbox -Xswiftc -swift-version -Xswiftc 5 --product CodexPulse
+        run: swift build -c release --disable-sandbox -Xswiftc -swift-version -Xswiftc 5 -Xswiftc -Xfrontend -Xswiftc -strict-concurrency=minimal --product CodexPulse
 
       - name: Assemble app bundle
         id: package
@@ -43,7 +43,7 @@ jobs:
           rm -rf "$APP_DIR" dist/Codex-Pulse-*.zip
           mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-          BIN_DIR="$(swift build -c release --disable-sandbox -Xswiftc -swift-version -Xswiftc 5 --show-bin-path)"
+          BIN_DIR="$(swift build -c release --disable-sandbox -Xswiftc -swift-version -Xswiftc 5 -Xswiftc -Xfrontend -Xswiftc -strict-concurrency=minimal --show-bin-path)"
           cp "$BIN_DIR/CodexPulse" "$APP_DIR/Contents/MacOS/CodexPulse"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
           cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
