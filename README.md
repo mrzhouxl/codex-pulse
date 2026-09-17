@@ -8,7 +8,7 @@
 
 前往仓库的 [Releases](https://github.com/mrzhouxl/codex-pulse/releases) 页面，下载最新的 `Codex-Pulse-*.zip`，解压后将 `Codex Pulse.app` 拖入“应用程序”。当前自动构建版本面向 Apple Silicon，并需要 macOS 14 或更新版本。
 
-每次推送代码都会运行测试并生成可下载的构建产物；推送形如 `v1.5.0` 的版本标签后，GitHub Actions 会自动创建一个 Release。当前构建尚未加入 Developer ID 签名和公证，首次打开时 macOS 可能显示安全提示。
+每次推送代码都会运行测试并生成可下载的构建产物；推送形如 `v1.5.0` 的版本标签后，GitHub Actions 会自动执行签名、公证并创建一个 Release。完成 GitHub Secrets 配置前，普通构建仍是未签名版本，首次打开时 macOS 可能显示安全提示。
 
 ## 使用
 

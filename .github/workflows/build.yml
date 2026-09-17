@@ -73,10 +73,121 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  signed-release-build:
+    name: Sign and notarize release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test-and-package
+    runs-on: macos-14
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Download unsigned app bundle
+        uses: actions/download-artifact@v5
+        with:
+          name: codex-pulse-${{ github.sha }}
+          path: unsigned-artifact
+
+      - name: Unpack app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          UNSIGNED_ZIP="$(find unsigned-artifact -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          unzip -q "$UNSIGNED_ZIP" -d dist
+          test -d "$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)"
+
+      - name: Install Developer ID certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Sign app with Developer ID
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_DIR="$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -n 1)"
+
+          test -n "$SIGNING_IDENTITY"
+          [[ "$SIGNING_IDENTITY" == *"($APPLE_TEAM_ID)"* ]]
+          echo "Using $SIGNING_IDENTITY"
+
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$APP_DIR/Contents/MacOS/CodexPulse"
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$APP_DIR"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+
+      - name: Submit app for notarization
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_DIR="$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)"
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_PATH="dist/Codex-Pulse-${VERSION}-$(uname -m).zip"
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+          (cd dist && zip -qr "$(basename "$ZIP_PATH")" "$(basename "$APP_DIR")")
+          xcrun notarytool submit "$ZIP_PATH" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait
+
+      - name: Staple and validate notarization
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_DIR="$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)"
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_PATH="dist/Codex-Pulse-${VERSION}-$(uname -m)-notarized.zip"
+
+          xcrun stapler staple "$APP_DIR"
+          xcrun stapler validate "$APP_DIR"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+          spctl --assess --type execute --verbose=4 "$APP_DIR"
+
+          (cd dist && zip -qr "$(basename "$ZIP_PATH")" "$(basename "$APP_DIR")")
+
+      - name: Upload notarized artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-pulse-signed-${{ github.sha }}
+          path: dist/*-notarized.zip
+          if-no-files-found: error
+
+      - name: Remove temporary signing keychain
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" 2>/dev/null || true
+
   release:
     name: Publish GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: test-and-package
+    needs: signed-release-build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,7 +196,7 @@ jobs:
       - name: Download packaged app
         uses: actions/download-artifact@v5
         with:
-          name: codex-pulse-${{ github.sha }}
+          name: codex-pulse-signed-${{ github.sha }}
           path: release-assets
 
       - name: Create or update GitHub Release
