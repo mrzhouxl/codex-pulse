@@ -4,6 +4,12 @@
 
 界面截图和本机验证快照属于本地构建产物，默认不纳入公开源码仓库。
 
+## 下载
+
+前往仓库的 [Releases](https://github.com/mrzhouxl/codex-pulse/releases) 页面，下载最新的 `Codex-Pulse-*.zip`，解压后将 `Codex Pulse.app` 拖入“应用程序”。当前自动构建版本面向 Apple Silicon，并需要 macOS 14 或更新版本。
+
+每次推送代码都会运行测试并生成可下载的构建产物；推送形如 `v1.5.0` 的版本标签后，GitHub Actions 会自动创建一个 Release。当前构建尚未加入 Developer ID 签名和公证，首次打开时 macOS 可能显示安全提示。
+
 ## 使用
 
 打开 `dist/Codex Pulse.app`。首次运行展示主面板，之后常驻菜单栏。

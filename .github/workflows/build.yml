@@ -1,0 +1,104 @@
+name: Build and release Codex Pulse
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    name: Test and package macOS app
+    runs-on: macos-14
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Prepare Swift module cache
+        run: mkdir -p "$GITHUB_WORKSPACE/.build/ModuleCache"
+
+      - name: Run tests
+        env:
+          CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/ModuleCache
+          SWIFTPM_MODULECACHE_OVERRIDE: ${{ github.workspace }}/.build/ModuleCache
+        run: swift test --disable-sandbox
+
+      - name: Build release binary
+        env:
+          CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/ModuleCache
+          SWIFTPM_MODULECACHE_OVERRIDE: ${{ github.workspace }}/.build/ModuleCache
+        run: swift build -c release --disable-sandbox --product CodexPulse
+
+      - name: Assemble app bundle
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          APP_DIR="dist/Codex Pulse.app"
+          rm -rf "$APP_DIR" dist/Codex-Pulse-*.zip
+          mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+
+          BIN_DIR="$(swift build -c release --disable-sandbox --show-bin-path)"
+          cp "$BIN_DIR/CodexPulse" "$APP_DIR/Contents/MacOS/CodexPulse"
+          cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+          cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+          chmod +x "$APP_DIR/Contents/MacOS/CodexPulse"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="dev-${GITHUB_SHA:0:7}"
+          fi
+
+          plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_DIR/Contents/Info.plist"
+          plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$APP_DIR/Contents/Info.plist"
+
+          ZIP_PATH="dist/Codex-Pulse-${VERSION}-$(uname -m).zip"
+          (
+            cd dist
+            zip -qr "$(basename "$ZIP_PATH")" "Codex Pulse.app"
+          )
+
+          echo "zip_name=$(basename "$ZIP_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-pulse-${{ github.sha }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test-and-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packaged app
+        uses: actions/download-artifact@v5
+        with:
+          name: codex-pulse-${{ github.sha }}
+          path: release-assets
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ZIP_PATH="$(find release-assets -maxdepth 1 -type f -name '*.zip' -print -quit)"
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$ZIP_PATH" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$ZIP_PATH" \
+              --title "Codex Pulse $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
