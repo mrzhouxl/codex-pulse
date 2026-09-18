@@ -47,6 +47,8 @@ jobs:
           cp "$BIN_DIR/CodexPulse" "$APP_DIR/Contents/MacOS/CodexPulse"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
           cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+          cp Resources/CodexMenuIconDark.png "$APP_DIR/Contents/Resources/CodexMenuIconDark.png"
+          cp Resources/CodexMenuIconLight.png "$APP_DIR/Contents/Resources/CodexMenuIconLight.png"
           chmod +x "$APP_DIR/Contents/MacOS/CodexPulse"
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then

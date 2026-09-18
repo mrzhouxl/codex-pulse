@@ -24,17 +24,17 @@ struct DashboardView: View {
                 }.scrollIndicators(.hidden)
                 footer
             }
-        }.background(Palette.bg).foregroundStyle(Palette.white).preferredColorScheme(.dark)
+        }.background(Palette.bg).foregroundStyle(Palette.white)
             .frame(minWidth: 940, minHeight: 690)
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                PulseMark(size: 32)
+            HStack(spacing: 11) {
+                PulseMark(size: 36)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Codex Pulse").font(.system(size: 15, weight: .semibold))
-                    Text("让每一份额度，都有数。").font(.system(size: 9)).foregroundStyle(Palette.dim)
+                    Text("Codex Pulse").font(.system(size: 16, weight: .semibold))
+                    Text("让每一份额度，都有数。").font(.system(size: 10)).foregroundStyle(Palette.dim)
                 }
             }.padding(.top, 50).padding(.bottom, 38)
             Text("工作空间").font(.system(size: 10, weight: .medium)).foregroundStyle(Palette.dim).padding(.leading, 10).padding(.bottom, 12)
@@ -58,7 +58,7 @@ struct DashboardView: View {
                     Text(store.planLabel).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(Palette.dim)
                 }
             }.padding(.top, 23).padding(.bottom, 22)
-        }.padding(.horizontal, 18).background(Color.white.opacity(0.012))
+        }.padding(.horizontal, 18).background(Palette.sidebar)
     }
     private func nav(_ id: String, _ title: String, _ symbol: String) -> some View {
         Button { store.page = id } label: {
@@ -91,8 +91,8 @@ struct DashboardView: View {
                     Button { store.selectedID = item.id } label: {
                         HStack(spacing: 6) { Image(systemName: item.symbol); Text(item.title) }
                             .font(.system(size: 11, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 8)
-                            .foregroundStyle(bucket.id == item.id ? Palette.bg : Palette.dim)
-                            .background(bucket.id == item.id ? Palette.accent : Palette.panel, in: Capsule())
+                            .foregroundStyle(bucket.id == item.id ? Palette.onAccent : Palette.dim)
+                            .background(bucket.id == item.id ? AnyShapeStyle(Palette.brandGradient) : AnyShapeStyle(Palette.panel), in: Capsule())
                     }.buttonStyle(.plain)
                 }
                 Spacer()
@@ -156,7 +156,7 @@ struct DashboardView: View {
             .background {
                 ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 20).fill(Palette.panel)
-                    RadialGradient(colors: [Palette.accent.opacity(0.07), .clear], center: .topTrailing, startRadius: 0, endRadius: 310)
+                    RadialGradient(colors: [Palette.accentAlt.opacity(0.10), Palette.accent.opacity(0.035), .clear], center: .topTrailing, startRadius: 0, endRadius: 310)
                 }.clipShape(RoundedRectangle(cornerRadius: 20))
             }.overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Palette.accent.opacity(0.16)))
     }
@@ -222,7 +222,7 @@ struct UsageChartCard: View {
                 Chart(store.currentDays) { day in
                     if let tokens = day.tokens {
                         BarMark(x: .value("日期", day.shortLabel), y: .value("Tokens", Double(tokens)), width: .ratio(0.45))
-                            .foregroundStyle(LinearGradient(colors: [Palette.accent.opacity(0.9), Palette.accent.opacity(0.32)], startPoint: .top, endPoint: .bottom))
+                            .foregroundStyle(LinearGradient(colors: [Palette.accent, Palette.accentAlt.opacity(0.48)], startPoint: .top, endPoint: .bottom))
                             .cornerRadius(3)
                             .opacity(hovered == nil || hovered?.id == day.id ? 1 : 0.4)
                             .accessibilityLabel("\(day.key)，\(tokens) Tokens")

@@ -4,19 +4,16 @@ struct SettingsView: View {
     @ObservedObject var store: PulseStore
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            section("桌面与菜单栏", symbol: "macwindow") {
-                setting("屏幕边缘悬浮条", detail: "拖动顶部手柄调整位置，点击圆环查看额度") {
-                    Toggle("屏幕边缘悬浮条", isOn: $store.showRail).labelsHidden().toggleStyle(.switch).tint(Palette.accent)
+            section("外观与菜单栏", symbol: "circle.lefthalf.filled") {
+                setting("外观模式", detail: "可跟随 macOS，也可以固定使用浅色或深色") {
+                    Picker("外观模式", selection: $store.appearanceMode) {
+                        ForEach(AppAppearanceMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }.labelsHidden().pickerStyle(.segmented).frame(width: 220)
                 }
                 Divider().overlay(Palette.line)
                 setting("菜单栏显示百分比", detail: "显示 Codex 主要额度组的剩余比例") {
                     Toggle("菜单栏显示百分比", isOn: $store.showMenuPercent).labelsHidden().toggleStyle(.switch).tint(Palette.accent)
                 }
-                Divider().overlay(Palette.line)
-                setting("悬浮条不透明度", detail: "当前 \(Int(store.railOpacity * 100))%") {
-                    Slider(value: $store.railOpacity, in: 0.55...1).tint(Palette.accent).frame(width: 145).accessibilityLabel("悬浮条不透明度")
-                }
-                HStack { Spacer(); Button("恢复悬浮条位置") { store.onResetRail?() }.font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(Palette.accent) }
             }
             section("同步与提醒", symbol: "arrow.triangle.2.circlepath") {
                 setting("自动刷新", detail: "唤醒 Mac 后也会自动同步") {
@@ -50,7 +47,7 @@ struct SettingsView: View {
                         Button("恢复自动查找") { store.customExecutable = ""; store.client.stop(); store.refresh() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Palette.accent)
                     }
                     Spacer()
-                    Text("Codex Pulse 1.4").font(.system(size: 10, design: .monospaced)).foregroundStyle(Palette.dim)
+                    Text("Codex Pulse 1.5.0").font(.system(size: 10, design: .monospaced)).foregroundStyle(Palette.dim)
                 }
             }
             if let message = store.settingsMessage {

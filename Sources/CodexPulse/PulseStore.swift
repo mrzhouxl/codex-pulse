@@ -24,9 +24,12 @@ final class PulseStore: ObservableObject {
     @Published var historyDays = 7
     @Published var now = Date()
     @Published var settingsMessage: String?
-    @Published var railOnRight = true
-    @Published var showRail: Bool { didSet { defaults.set(showRail, forKey: "showRail") } }
-    @Published var railOpacity: Double { didSet { defaults.set(railOpacity, forKey: "railOpacity") } }
+    @Published var appearanceMode: AppAppearanceMode {
+        didSet {
+            defaults.set(appearanceMode.rawValue, forKey: "appearanceMode")
+            onAppearanceChanged?(appearanceMode)
+        }
+    }
     @Published var refreshSeconds: Double { didSet { defaults.set(refreshSeconds, forKey: "refreshSeconds") } }
     @Published var showMenuPercent: Bool { didSet { defaults.set(showMenuPercent, forKey: "showMenuPercent") } }
     @Published var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: "notificationsEnabled") } }
@@ -49,18 +52,19 @@ final class PulseStore: ObservableObject {
     private let dataURL: URL
     var testingExecutable: String?
     var onShowDashboard: (() -> Void)?
-    var onShowDetails: (() -> Void)?
-    var onHideDetails: (() -> Void)?
-    var onResetRail: (() -> Void)?
+    var onClosePopover: (() -> Void)?
+    var onAppearanceChanged: ((AppAppearanceMode) -> Void)?
 
     init() {
-        showRail = defaults.object(forKey: "showRail") as? Bool ?? true
-        railOpacity = defaults.object(forKey: "railOpacity") as? Double ?? 0.98
+        let args = CommandLine.arguments
+        let testAppearance = args.contains("--smoke-test") ? args.firstIndex(of: "--test-appearance").flatMap {
+            args.indices.contains($0 + 1) ? AppAppearanceMode(rawValue: args[$0 + 1]) : nil
+        } : nil
+        appearanceMode = testAppearance ?? AppAppearanceMode(rawValue: defaults.string(forKey: "appearanceMode") ?? "") ?? .system
         refreshSeconds = defaults.object(forKey: "refreshSeconds") as? Double ?? 60
         showMenuPercent = defaults.object(forKey: "showMenuPercent") as? Bool ?? true
         notificationsEnabled = defaults.bool(forKey: "notificationsEnabled")
         customExecutable = defaults.string(forKey: "customExecutable") ?? ""
-        let args = CommandLine.arguments
         if args.contains("--smoke-test"), let index = args.firstIndex(of: "--test-codex"), args.indices.contains(index + 1) {
             testingExecutable = args[index + 1]
             dataURL = FileManager.default.temporaryDirectory.appendingPathComponent("PulseTest-" + UUID().uuidString)

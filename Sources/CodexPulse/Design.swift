@@ -3,16 +3,50 @@ import PulseCore
 import AppKit
 import QuartzCore
 
+enum AppAppearanceMode: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: "跟随系统"
+        case .light: "浅色"
+        case .dark: "深色"
+        }
+    }
+    var appKitAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 enum Palette {
-    static let bg = Color(red: 0.050, green: 0.054, blue: 0.063)
-    static let panel = Color(red: 0.082, green: 0.088, blue: 0.101)
-    static let raised = Color(red: 0.112, green: 0.121, blue: 0.140)
-    static let accent = Color(red: 0.57, green: 0.72, blue: 1.0)
-    static let dim = Color(red: 0.57, green: 0.59, blue: 0.63)
-    static let white = Color(red: 0.94, green: 0.95, blue: 0.98)
-    static let line = Color.white.opacity(0.075)
-    static let amber = Color(red: 1, green: 0.77, blue: 0.39)
-    static let coral = Color(red: 1, green: 0.44, blue: 0.38)
+    private static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        })
+    }
+    private static func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
+        NSColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
+    }
+
+    static let bg = adaptive(light: color(0.957, 0.969, 0.984), dark: color(0.035, 0.051, 0.078))
+    static let panel = adaptive(light: color(1.000, 1.000, 1.000), dark: color(0.063, 0.090, 0.133))
+    static let raised = adaptive(light: color(0.918, 0.941, 0.969), dark: color(0.094, 0.137, 0.204))
+    static let sidebar = adaptive(light: color(0.925, 0.949, 0.973), dark: color(0.031, 0.047, 0.075))
+    static let accent = adaptive(light: color(0.118, 0.388, 0.914), dark: color(0.357, 0.561, 1.000))
+    static let accentAlt = adaptive(light: color(0.294, 0.549, 1.000), dark: color(0.482, 0.702, 1.000))
+    static let dim = adaptive(light: color(0.337, 0.384, 0.455), dark: color(0.537, 0.588, 0.667))
+    static let white = adaptive(light: color(0.067, 0.094, 0.153), dark: color(0.945, 0.961, 0.984))
+    static let onAccent = adaptive(light: color(1, 1, 1), dark: color(0.027, 0.063, 0.122))
+    static let line = adaptive(light: color(0.045, 0.118, 0.220, 0.10), dark: color(1, 1, 1, 0.085))
+    static let track = adaptive(light: color(0.045, 0.118, 0.220, 0.10), dark: color(1, 1, 1, 0.105))
+    static let amber = adaptive(light: color(0.710, 0.365, 0.015), dark: color(1, 0.745, 0.405))
+    static let coral = adaptive(light: color(0.770, 0.155, 0.265), dark: color(1, 0.405, 0.500))
+    static let brandGradient = LinearGradient(colors: [accent, accentAlt], startPoint: .topLeading, endPoint: .bottomTrailing)
     static func quota(_ remaining: Double?) -> Color {
         guard let remaining else { return dim }
         return remaining <= 10 ? coral : remaining <= 30 ? amber : accent
@@ -23,9 +57,18 @@ struct PulseMark: View {
     var size: CGFloat = 28
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.29).fill(Palette.accent)
-            Image(systemName: "waveform.path").font(.system(size: size * 0.60, weight: .semibold)).foregroundStyle(Palette.bg)
-        }.frame(width: size, height: size)
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(Palette.brandGradient)
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.20), lineWidth: 1)
+            Text(">_")
+                .font(.system(size: size * 0.40, weight: .bold, design: .monospaced))
+                .tracking(-size * 0.055)
+                .foregroundStyle(Palette.onAccent)
+                .offset(x: -size * 0.015, y: -size * 0.015)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: Palette.accent.opacity(0.20), radius: size * 0.20, y: size * 0.08)
     }
 }
 
@@ -43,10 +86,10 @@ struct QuotaRing: View {
             if let symbol {
                 Image(systemName: symbol).font(.system(size: size * 0.28, weight: .medium)).foregroundStyle(Palette.white)
             } else {
-                VStack(spacing: 1) {
+                VStack(spacing: 2) {
                     Text(remaining.map { String(format: "%.0f", $0) } ?? "—")
-                        .font(.system(size: size * 0.27, weight: .medium, design: .rounded)).monospacedDigit()
-                    Text("% 剩余").font(.system(size: size * 0.07, weight: .medium)).foregroundStyle(Palette.dim)
+                        .font(.system(size: size * 0.30, weight: .semibold, design: .rounded)).monospacedDigit()
+                    Text("% 剩余").font(.system(size: size * 0.08, weight: .medium)).foregroundStyle(Palette.dim)
                 }
             }
         }.frame(width: size, height: size).opacity(muted ? 0.5 : 1)
@@ -90,7 +133,6 @@ final class RingDrawingView: NSView {
                              "lineWidth": NSNull(), "strokeColor": NSNull(), "strokeEnd": NSNull()]
             layer?.addSublayer(shape)
         }
-        trackLayer.strokeColor = NSColor.white.withAlphaComponent(0.10).cgColor
         progressLayer.strokeEnd = 0
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -102,6 +144,7 @@ final class RingDrawingView: NSView {
         self.lineWidth = lineWidth
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        trackLayer.strokeColor = NSColor(Palette.track).cgColor
         progressLayer.strokeColor = NSColor(Palette.quota(remaining)).cgColor
         progressLayer.shadowColor = progressLayer.strokeColor
         progressLayer.shadowOpacity = muted ? 0 : 0.12
@@ -163,7 +206,7 @@ struct QuotaBar: View {
             }
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.085))
+                    Capsule().fill(Palette.track)
                     Capsule().fill(Palette.quota(window.remaining))
                         .frame(width: max(0, proxy.size.width * window.remaining / 100))
                 }
@@ -188,8 +231,8 @@ struct ActionButton: View {
                 Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
                 Text(title).font(.system(size: 12, weight: .medium))
             }.padding(.horizontal, 13).padding(.vertical, 9)
-                .foregroundStyle(primary ? Palette.bg : Palette.white)
-                .background(primary ? Palette.accent : Palette.raised, in: RoundedRectangle(cornerRadius: 9))
+                .foregroundStyle(primary ? Palette.onAccent : Palette.white)
+                .background(primary ? AnyShapeStyle(Palette.brandGradient) : AnyShapeStyle(Palette.raised), in: RoundedRectangle(cornerRadius: 9))
                 .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(primary ? Color.clear : Palette.line))
         }.buttonStyle(.plain)
     }

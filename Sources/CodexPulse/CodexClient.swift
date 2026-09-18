@@ -92,7 +92,7 @@ final class CodexClient {
         do {
             try child.run()
             let _: InitResult = try await request("initialize", params: [
-                "clientInfo": ["name": "codex_pulse", "title": "Codex Pulse", "version": "1.4.0"],
+                "clientInfo": ["name": "codex_pulse", "title": "Codex Pulse", "version": "1.5.0"],
                 "capabilities": ["experimentalApi": true]
             ])
             try send(["method": "initialized"])
